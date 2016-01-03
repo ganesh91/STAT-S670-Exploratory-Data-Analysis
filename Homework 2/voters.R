@@ -1,0 +1,18 @@
+library(cluster)
+library(reshape2)
+data("votes.repub")
+df<-as.data.frame(votes.repub[1:10,26:30])
+colnames(df)<-c(1956,1960,1964,1968,1972)
+df["StateName"]<-rownames(df)
+df1<-melt(df,id.vars = "StateName")
+df1$StateName<-as.factor(df1$StateName)
+df1$variable<-as.integer(as.character(df1$variable))
+#qplot(data=df1,x=variable,y=value,color=StateName,aes(group=StateName,geom="line"))+geom_line(aes(group=StateName))
+StateNames<-unique(df1$StateName)
+plot(df1$variable[df1$StateName=="Alabama"],df1$value[df1$StateName=="Alabama"],main="Republican Votes Percentages",xlab = "Years",ylab="Percentages",xlim = c(1953,1974))
+for (i in seq(1:length(StateNames))){
+lines(df1$variable[df1$StateName==StateNames[i]],df1$value[df1$StateName==StateNames[i]],col=i,type="b")
+}
+abline(h=50,lty=2)
+#par(xpd=TRUE)
+legend("bottomleft",legend=StateNames,lty=1,cex=0.5,col=1:10)

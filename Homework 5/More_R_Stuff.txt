@@ -1,0 +1,455 @@
+########################################################################
+########################################################################
+############  HS GPA + SAT scores and College GPA        ###############
+########################################################################
+########################################################################
+
+n <- 30
+uu <- rnorm(n)
+vv <- rnorm(n)
+ww <- rnorm(n)
+
+cor((uu+vv)/sqrt(2), (uu+ww)/sqrt(2))
+
+hsgpa <- 2.5 + (uu+vv)/sqrt(2)
+hsgpa <- round(ifelse(hsgpa > 4, 4.0, hsgpa),2)
+sat <- 550 + 100*(uu+ww)/sqrt(2)
+sat <- ifelse(sat > 800, 800, round(sat))
+gpa <- 3 + 0.25*(sat-550)/100 + 0.75*(hsgpa-2.5) + 0.1*rnorm(n)
+# actual gpa <- -0.25 + 0.0025*sat + 0.75*hsgpa
+gpa[which(gpa>4)] <- sample(seq(3.5,4,by=0.02),length(which(gpa>4)))
+gpa = round(gpa,2)
+
+cbind(hsgpa, sat, gpa)
+
+
+###################################################
+############  Least Square: multiple regression
+###################################################
+
+
+ls.gpa <- lm(gpa ~ hsgpa + sat, data=data.frame(cbind(gpa,sat,hsgpa)))
+summary(ls.gpa)
+# predict(ls.gpa) or ls.gpa$fitted
+plot(ls.gpa$fitted,ls.gpa$res, xlab="fitted values") 
+abline(h=0,lty=3)
+
+###################################################
+############  Least Square: iterative fitting
+###################################################
+
+# Conduct linear regression in pieces
+# First, y on x = hsgpa
+lm1 <- lm(gpa ~ hsgpa, data=data.frame(cbind(gpa,hsgpa)))
+summary(lm1)
+c0 <- lm1$coef[1]
+c1 <- lm1$coef[2]
+y.1 <- lm1$res
+
+# Now, x2 on x1; save the residuals as x2.1
+lm2.1 <- lm(sat ~ hsgpa, data=data.frame(cbind(sat,hsgpa)))
+summary(lm2.1)
+d0 <- lm2.1$coef[1]
+d1 <- lm2.1$coef[2]
+x2.1 <- lm2.1$res
+
+# Finally, residuals of y on x1 (y.1) regressed on residuals of x2 on x1 (x2.1)
+lmy.12 <- lm(y.1 ~ x2.1, data=data.frame(cbind(y.1,x2.1)))
+summary(lmy.12)
+c2 <- lmy.12$coef[2]
+
+# Result:
+b2 <- c2; b2
+b1 <- c1 - d1*c2; b1
+b0 <- mean(gpa - b1*hsgpa - b2*sat); b0
+# compare
+c(b0, b1, b2)
+ls.gpa$coef
+
+
+# Plot the graphs
+par(mfrow=c(2,2))
+plot(hsgpa, gpa, xlab="x1=hsgpa", ylab="y=gpa",main="Y vs X1")
+abline(lm1)
+plot(sat, gpa, xlab="x2=sat", ylab="y=gpa", main="Y vs X2")
+plot(hsgpa, sat, xlab="HS GPA", ylab="SAT", main="X2 on X1")
+abline(lm2.1)
+
+plot(x2.1, y.1, xlab="Residuals x2.1 from X2 on X1",
+     ylab="Residuals of Y on X1")
+abline(lmy.12)
+# better is to rescale SAT variable to same scale as GPA for 
+# computational statility
+
+plot(predict(ls.gpa),ls.gpa$res, main="LS residuals using X1 and X2")
+
+
+###################################################
+############  Least Square: iterative fitting with outliers
+###################################################
+
+
+# Create some outliers
+gpa2 <- gpa; 
+cbind(hsgpa, sat, gpa2)
+gpa2[24] <- c(1.0) 
+
+ls.gpa2 <- lm(gpa2 ~ hsgpa + sat, data=data.frame(cbind(gpa2,sat,hsgpa)))
+summary(ls.gpa2)
+# compare
+ls.gpa2$coef
+ls.gpa$coef
+
+
+# Now, regress y (gpa2) on x = hsgpa
+lmx1 <- lm(gpa2 ~ hsgpa, data=data.frame(cbind(gpa2,hsgpa)))
+summary(lmx1)
+cx0 <- lmx1$coef[1]
+cx1 <- lmx1$coef[2]
+yx.1 <- lmx1$res
+
+# Now, x2 on x1; save the residuals as x2.1
+lm2.1 <- lm(sat ~ hsgpa, data=data.frame(cbind(sat,hsgpa)))
+summary(lm2.1)
+d0 <- lm2.1$coef[1]
+d1 <- lm2.1$coef[2]
+x2.1 <- lm2.1$res
+
+# Regress residuals from (y on x1: yx.1) on residuals of (x2 on x1: x2.1)
+lmxy.12 <- lm(yx.1 ~ x2.1, data=data.frame(cbind(yx.1,x2.1)))
+summary(lmxy.12)
+cx2 <- lmxy.12$coef[2]
+
+# Result:
+bx2 <- cx2; bx2
+bx1 <- cx1 - d1*cx2; bx1
+bx0 <- mean(gpa2 - bx1*hsgpa - bx2*sat); bx0
+# compare
+c(bx0, bx1, bx2)
+ls.gpa2$coef
+
+# Plot the graphs
+par(mfrow=c(2,2))
+plot(hsgpa, gpa2, xlab="x1=hsgpa", ylab="y=gpa2",main="Contaminated Y vs X1")
+abline(lmx1)
+plot(sat, gpa2, xlab="x2=sat", ylab="y=gpa2", main="Contaminated Y vs X2")
+plot(hsgpa, sat, xlab="HS GPA", ylab="SAT", main="X2 on X1")
+abline(lm2.1)
+
+plot(x2.1, yx.1, xlab="Residuals x2.1 from X2 on X1\nContaminated Data",
+     ylab="Residuals of Y on X1")
+abline(lmxy.12)
+
+
+
+###################################################
+############  RR line: iterative fitting (sweeping out)
+###################################################
+
+# Now replace all the "lm" (least square routines) by rrline
+
+cor(cbind(gpa, hsgpa, sat))
+
+# first, y (gpa) on x1 (hsgpa)
+rr1 <- run.rrline(hsgpa, gpa)
+rry.1 <- rr1$res
+rrc10 <- rr1$coef[6,1]
+rrc1 <- rr1$coef[6,2]
+
+# second, x2 (sat) on x1 (hsgpa)
+rr2 <- run.rrline(hsgpa, sat)
+rrx2.1 <- rr2$res
+rrd0 <- rr2$coef[6,1]
+rrd1 <- rr2$coef[6,2]
+
+# third, rry.1 on rrx2.1
+rr3 <- run.rrline(rrx2.1, rry.1) 
+rry.12 <- rr3$res
+rrc20 <- rr3$coef[6,1]
+rrc2 <- rr3$coef[6,2]
+
+# check slopes
+run.rrline(hsgpa,rry.12)
+run.rrline(rrx2.1,rry.12)
+
+# Result:
+rrb2 <- rrc2; rrb2
+rrb1 <- rrc1 - rrd1*rrc2; rrb1
+rrb0 <- median(gpa - rrb1*hsgpa - rrb2*sat); rrb0
+
+# compare Coefficients
+c(rrb0, rrb1, rrb2)
+ls.gpa$coef
+# actual gpa <- -0.25 + 0.0025*sat + 0.75*hsgpa
+
+# compare SSR
+sum(ls.gpa$res^2)
+sum(rry.12^2)
+
+###################################################
+############  RR line: iterative fitting (sweeping out) with outliers
+###################################################
+
+# first, contaminated y (gpa2) on x1 (hsgpa)
+rr1 <- run.rrline(hsgpa, gpa2)
+newy.1 <- rr1$res
+newc10 <- rr1$coef[6,1]
+newc1 <- rr1$coef[6,2]
+
+# second, x2 (sat) on x1 (hsgpa)
+rr2 <- run.rrline(hsgpa, sat)
+newx2.1 <- rr2$res
+newd0 <- rr2$coef[6,1]
+
+newd1 <- rr2$coef[6,2]
+
+# third, newy.1 on newx2.1
+rr3 <- run.rrline(newx2.1, newy.1) 
+newy.12 <- rr3$res
+newc20 <- rr3$coef[6,1]
+newc2 <- rr3$coef[6,2]
+
+# Plot 
+run.rrline(hsgpa,newy.12)
+run.rrline(newx2.1,newy.12)
+
+# Result:
+newb2 <- newc2; newb2
+newb1 <- newc1 - newd1*newc2; newb1
+newb0 <- median(gpa2 - newb1*hsgpa - newb2*sat); newb0
+
+# compare Coefficients
+c(rrb0, rrb1, rrb2) # rrline 
+c(newb0, newb1, newb2) # rrline with outliers
+ls.gpa$coef # LS
+ls.gpa2$coef # LS with outliers
+# actual gpa <- -0.25 + 0.0025*sat + 0.75*hsgpa
+  
+
+
+########################################################################
+########################################################################
+############                Smoking Data                 ###############
+########################################################################
+########################################################################
+
+prmedpol <- function(fit, digits = 3, rlab, clab){
+  if(missing(rlab))
+    rlab <- format(1:length(fit$row))
+  if(missing(clab))
+    clab <- format(1:length(fit$col))
+  prmatrix(round(rbind(cbind(fit$res,fit$row),c(fit$col,fit$overall)),digits),
+           rowlab=c(rlab,"Col"), collab=c(clab,"Row"))
+}
+
+smoke.x <- c(74,79,83,85,87,88,90:92)
+smoke.data <- matrix(scan("smoke.txt"),byrow=T,nrow=16); smoke.data
+smoke.wm <- smoke.data[1:4,] 
+smoke.bm <- smoke.data[5:8,] 
+smoke.wf <- smoke.data[9:12,] 
+smoke.bf <- smoke.data[13:16,]
+name.agegrp <- c("< 12"," 12 ","13-15",">=16")
+name.racegrp <- c("WM","BM","WF","BF")
+dimnames(smoke.data) <- list(paste(rep(name.racegrp,each=4), rep(name.agegrp, 4)),
+                             format(smoke.x)); smoke.data
+
+# output file
+smoke.coefs <- matrix(0,16,3) 
+smoke.coefs.LS <- matrix(0,16,3) 
+dimnames(smoke.coefs) <- list(
+  dimnames(smoke.data)[[1]],
+  c("Cntrcpt","Slope","|res|")); smoke.coefs
+dimnames(smoke.coefs.LS) <- dimnames(smoke.coefs)
+for (i in 1:16) {
+  rr <- run.rrline(smoke.x - 85, smoke.data[i,])
+  smoke.coefs[i,] <- rr$coef[6,1:3] 
+  ls <- lm(smoke.data[i,]~c(smoke.x-85))
+  smoke.coefs.LS[i,] <- c(ls$coef, sum(abs(ls$res)))
+}
+smoke.int <- matrix(smoke.coefs[,1],4,4)
+smoke.slope <- matrix(smoke.coefs[,2],4,4) 
+dimnames(smoke.int) <- list(name.agegrp,name.racegrp); smoke.int
+dimnames(smoke.slope) <- dimnames(smoke.int); smoke.slope
+smoke.int.LS <- matrix(smoke.coefs.LS[,1],4,4)
+smoke.slope.LS <- matrix(smoke.coefs.LS[,2],4,4)
+dimnames(smoke.int.LS) <- dimnames(smoke.int); smoke.int.LS
+dimnames(smoke.slope.LS) <- dimnames(smoke.int); smoke.slope.LS 
+
+
+par(mfrow=c(2,2)) 
+for ( i in 1:4 ){
+  plot(smoke.x,smoke.data[i,]/10, xlab="Year",
+       ylab="smoking prevalence")
+  title(dimnames(smoke.data)[[1]][i]) 
+  abline((smoke.coefs[i,1]-smoke.coefs[i,2]*85)/10,smoke.coefs[i,2]/10)
+  abline((smoke.coefs.LS[i,1]-smoke.coefs.LS[i,2]*85)/10,smoke.coefs.LS[i,2]/10,lty=3)
+}
+
+par(mfrow=c(2,2)) 
+for ( i in 5:8 ){
+  plot(smoke.x,smoke.data[i,]/10, xlab="Year",
+       ylab="smoking prevalence")
+  title(dimnames(smoke.data)[[1]][i]) 
+  abline((smoke.coefs[i,1]-smoke.coefs[i,2]*85)/10,smoke.coefs[i,2]/10)
+  abline((smoke.coefs.LS[i,1]-smoke.coefs.LS[i,2]*85)/10,smoke.coefs.LS[i,2]/10,lty=3)
+}
+
+par(mfrow=c(2,2)) 
+for ( i in 9:12 ){
+  plot(smoke.x,smoke.data[i,]/10, xlab="Year",
+       ylab="smoking prevalence")
+  title(dimnames(smoke.data)[[1]][i]) 
+  abline((smoke.coefs[i,1]-smoke.coefs[i,2]*85)/10,smoke.coefs[i,2]/10)
+  abline((smoke.coefs.LS[i,1]-smoke.coefs.LS[i,2]*85)/10,smoke.coefs.LS[i,2]/10,lty=3)
+}
+
+par(mfrow=c(2,2)) 
+for ( i in 13:16 ){
+  plot(smoke.x,smoke.data[i,]/10, xlab="Year",
+       ylab="smoking prevalence")
+  title(dimnames(smoke.data)[[1]][i]) 
+  abline((smoke.coefs[i,1]-smoke.coefs[i,2]*85)/10,smoke.coefs[i,2]/10)
+  abline((smoke.coefs.LS[i,1]-smoke.coefs.LS[i,2]*85)/10,smoke.coefs.LS[i,2]/10,lty=3)
+}
+
+
+mpol.int <- medpolish(smoke.int)
+mpol.slope <- medpolish(smoke.slope)
+prmedpol(mpol.int,rlab=name.agegrp, clab=name.racegrp)
+prmedpol(mpol.slope,rlab=name.agegrp, clab=name.racegrp)
+
+par(mfrow=c(1,1))
+
+plot(mpol.int)
+plot(mpol.slope)
+
+
+stem(mpol.int$res)
+mpol.int$row
+mpol.int$col
+
+stem(mpol.slope$res)
+mpol.slope$row
+mpol.slope$col
+
+
+myplotfit(mpol.int)
+myplotfit(mpol.slope)
+
+
+
+
+########################################################################
+########################################################################
+########################################################################
+########################################################################
+########################################################################
+
+
+# hearing data
+
+hear <- scan()
+
+hz   profl farm  sales crafts oper serv  labor 
+500    2.1   6.8   8.4   1.4  14.6   7.9   4.8 
+1000    1.7   8.1   8.4   1.4  12.0   3.7   4.5
+2000   14.4  14.8  27.0  30.9  36.5  36.4  31.4 
+3000   57.4  62.4  37.4  63.3  65.5  65.6  59.8
+4000   66.2  81.7  53.3  80.7  79.7  80.8  82.4 
+6000   75.2  94.0  74.3  87.9  93.3  87.8  80.5
+norm    4.1  10.2  10.7   5.5  18.1  11.4   6.1 
+
+hear <- matrix(hear, byrow=T, ncol=7); hear
+dimnames(hear) <- list(c("500","1000","2000","3000","4000","6000","norm"),
+                       c("profl","farm","sales","crafts","oper","serv","labor")); hear
+
+hear.LS <- twoway.mean(hear); hear.LS
+stem(hear.LS$res)
+hear.MP <- medpolish(hear); hear.MP
+stem(hear.MP$res,scale=3)
+boxplot(c(hear.MP$res))
+plot(hear.LS$res, hear.MP$res)
+abline(0,1,col=2)
+
+
+diag.MP <- function(fit){
+  fit.comp <- matrix(fit$row,ncol=1) %*% matrix(fit$col,nrow=1)/fit$overall
+  plot(fit.comp, fit$res,xlab="Comparison value",ylab="Residual",cex=0.5)
+  abline(v=0,h=0,lty=2)
+  ls <- lm(c(fit$res)~c(fit.comp))
+  abline(ls,col="red",lty=3) 
+  rr <- run.rrline(fit.comp,fit$res,iter=10) 
+  abline(rr$a, rr$b, col="red")
+  pwr1 <- 1 - rr$b
+  pwr2 <- 1 - ls$coef[2]
+  title("",paste("Approximate power =",format(round(pwr1,2))," or ", format(round(pwr2,2))))
+}
+
+par(mfrow=c(1,2))
+diag.MP(hear.MP)
+plot(hear.MP)
+
+prmedpol(hear.MP,rlab=dimnames(hear)[[1]],clab=dimnames(hear)[[2]])
+
+
+myplotfit <- function(outmpol,outlim=0,...) {
+  # outmpol is output of medpolish in library(eda) or library(stats)
+  # be sure to assign dimnames to matrix being polished
+  oldpar <- par()
+  par(fig=c(0,.7,0,1))
+  nc <- length(outmpol$col)
+  nr <- length(outmpol$row)
+  a <- rep(outmpol$row,nc)
+  b <- rep(outmpol$col,rep(nr,nc)) 
+  sqrt2 <- sqrt(2)
+  ab <- cbind((a-b)/sqrt2,(a+b)/sqrt2)
+  xrange <- range(ab[,1]) + c(-.1,.1)*(max(ab[,1])-min(ab[,1]))
+  yrange <- range(ab[,2]) + c(-.1,.1)*(max(ab[,2])-min(ab[,2]))
+  dx <- (xrange[2]-xrange[1])/50
+  dy <- (yrange[2]-yrange[1])/50
+  plot(ab[,1],ab[,2],axes=F,xlim=xrange,ylim=yrange,xlab="",ylab="",...)
+  segments((min(a)-outmpol$col)/sqrt2, (min(a)+outmpol$col)/sqrt2,
+           (max(a)-outmpol$col)/sqrt2, (max(a)+outmpol$col)/sqrt2,lty=3)
+  segments((outmpol$row-min(b))/sqrt2, (outmpol$row+min(b))/sqrt2,
+           (outmpol$row-max(b))/sqrt2, (outmpol$row+max(b))/sqrt2,lty=3)
+  # segments((outmpol$row)/sqrt2-min(b), (outmpol$row)/sqrt2+min(b),
+  #        (outmpol$row)/sqrt2-max(b), (outmpol$row)/sqrt2+max(b),lty=3)
+  yrowloc <-  rep(max(b),nr)
+  xrowloc <-  outmpol$row
+  # text((xrowloc-yrowloc)/sqrt2-dx,dy+(xrowloc+yrowloc)/sqrt2,format(1:nr))
+  text((xrowloc-yrowloc)/sqrt2-dx,dy+(xrowloc+yrowloc)/sqrt2,
+       names(sort(outmpol$row)))
+  xcolloc <- rep(max(a),nc)
+  ycolloc <- outmpol$col
+  # text(dx+(xcolloc-ycolloc)/sqrt2,dy+(xcolloc+ycolloc)/sqrt2,format(1:nc))
+  text(dx+(xcolloc-ycolloc)/sqrt2,dy+(xcolloc+ycolloc)/sqrt2,
+       names(sort(outmpol$col)))
+  ynames <- format(round(outmpol$overall + sqrt2*pretty(ab[,2])))
+  axis(2,at=pretty(ab[,2]),labels=ynames)
+  # add vertical lines when there is an outlier
+  if(abs(outlim) > 1e-4) {
+    out.index <- which(abs(outmpol$res) > outlim, arr.ind=T)
+    # find (r,c) for outlier indices
+    zz.x <- outmpol$row[out.index[,1]]
+    zz.y <- outmpol$col[out.index[,2]]
+    # outlier points at (zz.x-zz.y)/sqrt2, (zz.x+zz.y)/sqrt2
+    # draw segment from here to end of residual
+    segments((zz.x-zz.y)/sqrt2, (zz.x+zz.y)/sqrt2,
+             (zz.x-zz.y)/sqrt2, (zz.x+zz.y)/sqrt2 + outmpol$res[out.index])
+  }
+  par <- oldpar
+  invisible()
+}
+
+
+myplotfit(hear.MP,outlim=0)
+
+par(mfrow=c(1,2))
+plot(1:7,hear.MP$row,'b',xaxt="n",xlab="frequency",ylab="Effect")
+axis(side=1,at=1:7,label=rownames(hear),cex.axis=0.4)
+abline(h=0,lty=2)
+
+plot(1:7,hear.MP$col,'b',xaxt="n",xlab="profession",ylab="Effect")
+axis(side=1,at=1:7,label=colnames(hear),cex.axis=0.6)
+abline(h=0,lty=2)
+

@@ -1,0 +1,211 @@
+---
+title: "STAT S 670 Explolatory Data Analysis"
+author: "Ganesh Nagarajan, gnagaraj@indiana.edu"
+date: "November 20, 2015"
+output: pdf_document
+---
+1. Jackknife estimate\
+Observation: Jackknifing is similar to Bootstrapping. Bootstrapping involves creating a population from the sample and sub-sampling from the population for the estimates. Jackkinfing is bootstrapping with replacement and everytime only one sample is removed. \
+
+The $i_{th}$ estimate $\hat{\theta_{(i)}}$ of the statistic $\hat{\theta}=s(x)$ is 
+$\hat{\theta_{(i)}} = s(x_{i})$ , $\forall i=1,....n$  
+
+$s(x_{(i)})={\frac{1}{n-1}}\sum_{j \neq i}{x_j}$\
+ = $\frac{{(n \bar{x})}-x_i }{n-1}$\    
+ = $\bar{x_i}$  
+
+Thus,
+$\bar{x_{(.)}}=\frac{1}{n}\sum_{i=1}^n\bar{x_i} =\bar{x}$  
+
+Thus the jack knife estimate, mean of the sample is the actual mean. 
+
+Standard error estimate for mean: \
+
+Therefore:  
+ $\hat{se_{jack}(\bar{x})}$= $\sqrt{(\sum_{i=1}^n\frac{{x_i-\bar{x}}^2}{(n-1)n})}$  
+ =$\frac{\bar{\sigma}}{\sqrt(n)}$  = $\frac{s}{\sqrt(n)}$  
+ 
+2.Standard error values,\
+
+From the known definitions,\
+$SD{y_i}=\frac{1}{\sqrt{n}}\sqrt{\sum_{i=1 to n}({y_i-\bar{x}})^(1/2)}$ \ \
+
+Substituting and expanding,\
+$\frac{1}{(n-1)\sqrt{n}}\sqrt{\sum_{i=1}^{n}{({x_i}-\bar{x}})^(1/2)}$ \
+$\frac{1}{n-1} SD(pv)$\
+so, SD(p.values)=(n-1)SD(y-1)\
+thus, $\frac{SD(p.values)}{\sqrt{n}}=\frac{(n-1)}{\sqrt{n}}SD(y-i)=SEC(PV)$\
+ie, the standard error of psuedo-values in jack knife is as same as the standard error value of "leave one out" method multiplies by (n-1)
+
+3.LSAT vs GPA Dataset
+```{r}
+x <- c(576,635,558,578,666,580,555,661,651,605,653,575,545,572,594)
+y <- c(339,330,281,303,344,307,300,343,336,313,312,274,276,288,296)
+data.df <- data.frame(x, y)
+
+#Find Pearson correlation
+corr.df <- cor(x, y, method = c("pearson"))
+#------- 3 (a)
+#Estimate theta user fischer's formula
+theta <- 0.5*((1+corr.df)/(1-corr.df))
+var.df<-1/(length(x)-3)
+ci.l<-corr.df-1.96*var.df
+ci.u<-corr.df+1.96*var.df
+
+#-- Part B
+jackknife.mean<-function(dat){
+  n=nrow(dat)
+  corr.df <- cor(dat$x, dat$y, method = c("pearson"))
+  theta<-0.5*log((1+corr.df)/(1-corr.df))
+  p.values <- numeric(n)
+  est.theta <- numeric(n)
+  for (i in 1:n){
+    new.data<-dat[-i,]
+    new.corr<-cor(new.data$x,new.data$y,method = c("pearson"))
+    est.theta[i] <- 0.5*log((1+new.corr)/(1-new.corr))
+    p.values[i] <- n*theta - (n-1)*est.theta[i]
+  }
+  bias = theta - mean(p.values)
+  variance = var(p.values)
+  se = sd(p.values)/sqrt(n)
+  ci.lower = mean(p.values) - qt(0.975, df = (n-1))*se
+  ci.upper = mean(p.values) + qt(0.975, df = (n-1))*se
+  return(list(bias=bias, var = variance, ps = p.values,ci=c(ci.lower,ci.upper)))
+}
+
+#---Part(c)
+jackknife.theta <- jackknife.mean(data.df)
+print(jackknife.theta)
+stem(jackknife.theta$ps)
+plot(jackknife.theta$ps)
+```
+
+It can be seen that the first point is the outlier.
+
+```{r}
+jack.df2 <- data.df[-1,]
+jack.mean2 <- jackknife.mean(jack.df2)
+plot(jack.mean2$ps)
+
+#----part(d)
+bootstrap.est <- function (dat,n.sam)
+{
+  n <- length(dat$x)
+  index <- 1:n
+  rho <- cor(dat$x, dat$y, method = c("pearson"))
+  theta <- 0.5*log((1 + rho)/(1 - rho))
+  stat <- numeric(n.sam)
+  oob.err <- numeric(n.sam)
+  for (i in 1:n.sam)
+  {
+    sampleindex<- sample(index,n,replace<-TRUE)
+    stat[i] <- cor(dat$x[sampleindex], dat$y[sampleindex],method=c("pearson"))
+    oob.i <- setdiff(index,unique(sampleindex))
+    oob.dat <- dat[oob.i,]
+    oob.err[i] <- sum((oob.dat-stat[i])^2)/length(oob.i)
+  }
+  bias <- theta - mean(stat)
+  variance <- var(stat)
+  se <- sqrt(variance)
+  avg.oob.err <- mean(oob.err)
+  output <- list(bias=bias,var=variance,se=se,avg.oob.err=avg.oob.err)
+}
+boot.est<-bootstrap.est(data.df,10)
+print(boot.est)
+```
+
+4. Linear Regression boot strap estimator
+
+```{r}
+source("rrline.r")
+
+boot <- function(data, R)
+{
+  n <- length(data$x)
+  index <- 1:n
+  #Create a matrix with R rows
+  theta <- matrix(0,R,2)
+  oob.err <- numeric(R)
+  boot.in <- numeric(R)
+  fit <- run.rrline(data$x,data$y)
+  theta.hat <- c(fit$a,fit$b) 
+  for(i in 1:R)
+  {
+    sample.index = sample(index, n, replace = TRUE)
+    inbag <- data[sample.index,]
+    oob.ind <- setdiff(index, unique(sample.index))
+    oob.data <- data[oob.ind,]
+    bootstrapped.y <- run.rrline(inbag$x, inbag$y)
+    theta[i,1] <- bootstrapped.y$a
+    theta[i,2] <- bootstrapped.y$b
+    #print(theta)
+    #print(oob.data$y)
+    bootstrap.out <- oob.data$x*bootstrapped.y$b + bootstrapped.y$a
+    #print(bootstrap.out)
+    #print(oob.data$y)
+    oob.err[i] <- sum((oob.data$y - bootstrap.out)^2)/length(oob.data)
+  }
+  mean.theta = apply(theta,2,mean)
+  bias = theta.hat - mean.theta
+  var = diag(cov(theta))
+  se = sqrt(var)
+  #print(oob.err)
+  avgooberr = mean(oob.err)
+  return(out = list(boot.a = mean.theta[[1]], boot.b = mean.theta[[2]], bias = bias, var = var, se=se, avgooberr=avgooberr))
+}
+attach(faithful)
+data <- data.frame(waiting,eruptions)
+names(data) = c("x", "y")
+boot.est = boot(data, 10)
+print(boot.est)
+```
+
+5.k-fold validation
+```{r}
+source("rrline.r")
+
+cval.prog <- function (data,n.folds)
+{
+  n <- length(data$x)
+  floorlen <- floor(n/n.folds)
+  folds <- rep(1:n.folds,floorlen)
+  k <- n - length(folds)
+  
+  if(k>0){
+    #Create 1:k till k times
+    folds = c(folds,1:k)
+  }
+  
+  foldindicies = sample(folds,n,replace=FALSE)
+  fit = run.rrline(data$x, data$y)
+  theta = c(fit$a, fit$b)
+  stat = numeric(n.folds)
+  cverr = numeric(n.folds)
+  cv.mat = matrix(0, n.folds, 2)
+  for (i in 1:n.folds)
+  {
+    b = foldindicies == i
+    cv = run.rrline(data[b,]$x, data[b,]$y)
+    cv.mat[i,1] = cv$a
+    cv.mat[i,2] = cv$b
+    oobdata = data[!b,]
+    pred = oobdata$x*cv$b + cv$a
+    cverr[i] = sum((oobdata$y - pred)^2)/nrow(data[!b,])
+  }
+  mean.theta = apply(cv.mat, 2, mean)
+  bias = theta - mean.theta
+  var = diag(cov(cv.mat))
+  se = sqrt(var)
+  avgcverr = mean(cverr)
+  return(out = list(boot.a = mean.theta[[1]], boot.b = mean.theta[[2]], bias = bias, var = var, se=se, avgcverr=avgcverr))
+}
+
+attach(faithful)
+data.input = data.frame(waiting,eruptions)
+names(data.input) = c("x", "y")
+cval.res = cval.prog(data.input, 3)
+print(cval.res)
+
+#It can be note that the program runs RR run program runs three times, which is as expected.
+
+```

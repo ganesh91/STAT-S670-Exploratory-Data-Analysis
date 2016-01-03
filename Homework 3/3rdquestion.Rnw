@@ -1,0 +1,74 @@
+\documentclass{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb,amsfonts}
+\usepackage{multicol}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{tabu}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{color}
+\usepackage{hyperref}
+\hypersetup{backref,colorlinks=true,citecolor=blue,linkcolor=blue,urlcolor=blue}
+\newcommand{\vsp}{\vspace{.2in}}
+
+\singlespacing
+\parindent 0ex
+\singlespacing
+\parindent 0ex
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\begin{enumerate}
+\item 
+\begin{enumerate}
+\item Objective: Do a matched transform and a cubed transformation for function $ax^{1/3} +b$
+\\ For cubed transformation, $T(x)=x^{1/3}$. Substututing this value to equation in the lecture notes, we get
+\\$z=ax^{1/3}+b$
+\\ From the data given at table 4-1, the median is 3480.
+\\ Step 1: Calculate T$'$, Given $T(x)=x^{\frac{1}{3}}$
+\\ T$'$ = $\frac{1}{3} x^{\frac{1}{3}-1}$ = $\frac{1}{3x^{\frac{2}{3}}}$
+\\ Since median = $x_0$ = 3480 (Given)
+\\ Step 2: Calculate a
+\\ From lecture notes, a=$\frac{1}{T'(x_0)}$ = $3x_0^{\frac{2}{3}}$ = $3*3480^{\frac{2}{3}}$ = 688.92
+\\ Step 3: Calculate b
+\\ Also from Lecture Notes, $b=3480-688.92*(3480)^{\frac{1}{3}}$ 
+\\ =3480-688.92(15.15) 
+\\ = 3480 - 10437.14 
+\\ $\approx$ -6957.14
+\\ Hence rounding a and b, the matched value transformation is, $z=690x^{\frac{1}{3}}-7000$
+\item Proof: Proof the given equation is the exact transform, is given by below R code and Letter value Pair
+\begin{verbatim}
+FL<-c(2142,1788,1517,1248,963.5,727.5,579,345,114)
+M<-c(3678,4115.5,4400.5,4799,4978.75,5241,5394.5,5510.25,5494)
+FU<-c(4944,6643,7284,8350,8994,9754.5,10210,10675.5,1087)
+Letters<-c("F","E","D","C","B","A","Z","Y","")
+z<-cbind(FL,M,FU)
+z<-(690*(z)^(1/3))-7000
+z<-cbind(Letters,z)
+(690*(z)^(1/3))-7000
+
+A slightly formatted output of the above R command is as follows,
+
+           FL       M         FU
+ [M]  0         3456.239    0
+ [F]  1894.5145 3650.901 4754.61957
+ [E]  1374.7451 4057.492 5970.91186
+ [D]   928.2551 4307.062 6375.36790
+ [C]   428.8334 4638.562 6998.38442
+ [B]  -184.9926 4782.095 7349.38821
+ [A]  -794.2622 4985.435 7742.93990
+ [Z] -1249.0188 5101.322 7968.93852
+ [Y] -2160.6304 5187.263 8193.05695
+ [ ] -3654.3228 5175.271   94.56228
+
+\end{verbatim}
+By comparing the above table with table 4-1 in UREDA book, the medians are approximately similar, thus the matched transform does its job
+\item The Mid summaries in the matched transform is approximately equivalent to the mid summaries in the 4-1 table. Thus the transformation does its job good.
+\end{enumerate}
+\end{enumerate}
+\end{document}

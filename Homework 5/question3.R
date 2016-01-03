@@ -1,0 +1,10 @@
+set.seed(1234)
+ti<-function(t){((2*t)-1)/100}
+t<-sapply(1:50,ti)
+mui<-function(t){t+0.5*exp(-50*(t-0.5)^2)}
+mu<-sapply(t,mui)
+e<-rnorm(50,0,0.5)
+y<-(mu*t)+e
+testDS<-as.data.frame(cbind(t,y))
+b<-ksmooth(testDS$t,testDS$y,kernel="normal",bandwidth=0.35)
+plot(b$x,b$y,lty=2,add=T)

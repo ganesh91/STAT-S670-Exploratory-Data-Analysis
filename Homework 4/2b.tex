@@ -1,0 +1,48 @@
+\documentclass{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb,amsfonts}
+\usepackage{multicol}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{tabu}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{color}
+\usepackage{hyperref}
+\hypersetup{backref,colorlinks=true,citecolor=blue,linkcolor=blue,urlcolor=blue}
+\newcommand{\vsp}{\vspace{.2in}}
+
+\singlespacing
+\parindent 0ex
+\singlespacing
+\parindent 0ex
+
+\usepackage{Sweave}
+\begin{document}
+\input{1-california-concordance}
+\begin{enumerate}
+\item Given the points (-2,-2),(-1,-1),(1,1),(2,2) and (u,v)
+\begin{enumerate}
+\item 
+\end{enumerate}
+\item 
+\begin{enumerate}
+\item Objective: Do a matched transform for the log transformation for the California Dataset, such that function $z=a\log_{10}{x}+b$
+\\ From the California data subset, the median is 179140.5.
+\\ Step 1: Calculate T$'$, Given $T(x)=log(x) = log_{10}e*log_{e}x$
+\\ T$'$ = $log_{10}e*\frac{1}{x} = \frac{0.4343}{x}$
+\\ Median = $x_0$ = 179140.5 (Given)
+\\ Step 2: Calculate b
+\\ From lecture notes, b=$\frac{1}{T'(x_0)}$ = $\frac{x_0}{0.4343}$ = $\frac{179140.5}{0.4343}$ = 412481
+\\ Step 3: Calculate a
+\\ Also from Lecture Notes, $a = x_0 - b*log_{10}x_0$ 
+\\ $=179140.5-412481*log_{10}179140.5$
+\\ $\approx$ -1987702
+\\ Hence rounding a and b, the matched value transformation is, $z=412481*log(x)-1987702$
+\end{enumerate}
+\end{enumerate}
+\end{document}

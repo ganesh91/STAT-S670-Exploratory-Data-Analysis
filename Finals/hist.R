@@ -1,0 +1,12 @@
+set.seed(123)
+sample.pop<-rgamma(1000,shape=1)
+par(mfrow=c(1,1),mfcol=c(1,2))
+hist(sample.pop,main="Histogram")
+qqnorm(sample.pop)
+qqline(sample.pop,color="red")
+
+sample.trans<-sample.pop^(1/3)
+par(mfrow=c(1,1),mfcol=c(1,2))
+hist(sample.trans,main="Histogram")
+qqnorm(sample.trans)
+qqline(sample.trans,col="red")
